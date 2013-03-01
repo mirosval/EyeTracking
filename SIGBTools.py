@@ -19,6 +19,15 @@ def getCircleSamples(center=(0,0),radius=1,nPoints=30):
     P = [(radius*np.cos(t)+center[0], radius*np.sin(t)+center[1],np.cos(t),np.sin(t) ) for t in s ]
     return P
 
+def getCircleSamples2(center=(0,0),radius=1,nPoints=30):
+    ''' Samples a circle with center center = (x,y) , radius =1 and in nPoints on the cirlce
+    '''
+    s = np.linspace(0, 2*math.pi, nPoints)
+    #p = (radius*np.cos(t)+center[0],radius*np.sin(t)+center[1])
+    
+    #points
+    P = [[[round(radius*np.cos(t)+center[0]), round(radius*np.sin(t)+center[1])]] for t in s ]
+    return P
 
 
 def getImageSequence(fn,fastForward =2):

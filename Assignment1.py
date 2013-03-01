@@ -5,13 +5,14 @@ from SIGBTools import RegionProps
 from SIGBTools import getLineCoordinates
 from SIGBTools import ROISelector
 from SIGBTools import getImageSequence
+from SIGBTools import getCircleSamples2
 import numpy as np
 import sys
 
 
 
 
-inputFile = "Sequences/eye3.avi"
+inputFile = "Sequences/eye1.avi"
 outputFile = "eyeTrackerResult.mp4"
 
 #--------------------------
@@ -28,34 +29,52 @@ frameNr =0;
 def GetPupil(gray,thr, structuringElementSize):
 	'''Given a gray level image, gray and threshold value return a list of pupil locations'''
 	tempResultImg = cv2.cvtColor(gray,cv2.COLOR_GRAY2BGR) #used to draw temporary results
-	cv2.circle(tempResultImg,(100,200), 2, (0,0,255),4) #draw a circle
+	# cv2.circle(tempResultImg,(100,200), 2, (0,0,255),4) #draw a circle
 	cv2.imshow("TempResults",tempResultImg)
 
 	props = RegionProps()
 
-	val, binI =cv2.threshold(gray, thr, 255, cv2.THRESH_BINARY_INV)
-
-	kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (structuringElementSize, structuringElementSize))
+	val, binI = cv2.threshold(gray, thr, 255, cv2.THRESH_BINARY_INV)
+	# binI = cv2.adaptiveThreshold(gray, 255, cv2.cv.CV_ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 5, 10)
+	# cv2.imshow("Threshold",binI)
+	# kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (structuringElementSize, structuringElementSize))
+	kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
 	binI = cv2.erode(binI, kernel, iterations = 1)
 	binI = cv2.dilate(binI, kernel, iterations = 1)
 
-	cv2.imshow("Threshold",binI)
+	
 	#Calculate blobs
 	contours, hierarchy = cv2.findContours(binI, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-	pupils = [];
+	pupils = []
+	accepted = []
 
 	for contour in contours:
 		p = props.CalcContourProperties(contour, ['Area','Length','Centroid','Extend','ConvexHull', 'Boundingbox', 'EquivDiameter'])
-		if p['Area'] < 500 or p['Area'] > 6000:
+		if p['Area'] < 1000 or p['Area'] > 6000:
 			continue
-		
-		if p['Extend'] < 0.05:
+		# print(p['Extend'])
+		if p['Extend'] < 0.07:
 			continue
 
-		c = p['Centroid']
-		pupil = ((c[0], c[1]), (p['EquivDiameter'], p['EquivDiameter']), 0.0)
+		# Figure out if contour is a circle
+		hull = p['ConvexHull']
+		# c = p['Centroid']
+		center, radius = cv2.minEnclosingCircle(hull)
+		circle = np.array(getCircleSamples2(center, radius)).astype(int)
+		
+		retval = cv2.matchShapes(circle, hull, cv2.cv.CV_CONTOURS_MATCH_I1, 0)
+		if retval > 0.05:
+			continue
+
+		# accepted.append(circle)
+		accepted.append(contour)
+
+		# c = p['Centroid']
+		pupil = (center, (p['EquivDiameter'], p['EquivDiameter']), 0.0)
 		pupils.append(pupil)
 
+	# cv2.drawContours(binI, accepted, -1, (255, 0, 0))
+	# cv2.imshow("Threshold",binI)
 
 	return pupils
 
@@ -63,8 +82,28 @@ def GetGlints(gray,thr):
 	''' Given a gray level image, gray and threshold
 	value return a list of glint locations'''
 	glints = []
+	props = RegionProps()
 
+	val, binI = cv2.threshold(gray, thr, 255, cv2.THRESH_BINARY)
+	
+	contours, hierarchy = cv2.findContours(binI, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+	accepted = []
 
+	for contour in contours:
+		p = props.CalcContourProperties(contour, ['Area','Length','Centroid','Extend','ConvexHull', 'Boundingbox', 'EquivDiameter'])
+		if p['Area'] < 50 or p['Area'] > 500:
+			continue
+		# print(p['Extend'])
+		if p['Extend'] < 0.07:
+			continue
+
+		accepted.append(contour)
+		c = p['Centroid']
+		glint = (c[0], c[1])
+		glints.append(glint)
+
+	# cv2.drawContours(binI, accepted, -1, (255, 0, 0))
+	# cv2.imshow("Threshold",binI)
 
 	return glints
 
@@ -261,7 +300,7 @@ def setupWindowSliders():
 	cv2.createTrackbar('structSize','Threshold', 1, 255, onSlidersChange)
 
 	#Threshold value for the pupil intensity
-	cv2.createTrackbar('pupilThr','Threshold', 90, 255, onSlidersChange)
+	cv2.createTrackbar('pupilThr','Threshold', 110, 255, onSlidersChange)
 	#Threshold value for the glint intensities
 	cv2.createTrackbar('glintThr','Threshold', 240, 255,onSlidersChange)
 	#define the minimum and maximum areas of the pupil
@@ -269,6 +308,9 @@ def setupWindowSliders():
 	cv2.createTrackbar('maxSize','Threshold', 200,200, onSlidersChange)
 	#Value to indicate whether to run or pause the video
 	cv2.createTrackbar('Stop/Start','Threshold', 0,1, onSlidersChange)
+
+	cv2.moveWindow("Result", 800, 0)
+	cv2.moveWindow("TempResults", 800, 500)
 
 def getSliderVals():
 	'''Extract the values of the sliders and return these in a dictionary'''
