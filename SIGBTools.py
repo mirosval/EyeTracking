@@ -1,5 +1,4 @@
 import cv2
-# import cv2
 import numpy as np
 import pylab
 from pylab import *
@@ -10,13 +9,14 @@ Written and Assembled  (2012,2013) by  Dan Witzner Hansen, IT University.
 '''
 
 def getCircleSamples(center=(0,0),radius=1,nPoints=30):
-    ''' Samples a circle with center center = (x,y) , radius =1 and in nPoints on the cirlce
-    '''
+    ''' Samples a circle with center center = (x,y) , radius =1 and in nPoints on the circle.
+    Returns an array of a tuple containing the points (x,y) on the circle and the curve gradient in the point (dx,dy)
+    Notice the gradient (dx,dy) has unit length'''
+
+
     s = np.linspace(0, 2*math.pi, nPoints)
-    #p = (radius*np.cos(t)+center[0],radius*np.sin(t)+center[1])
-    
     #points
-    P = [(radius*np.cos(t)+center[0], radius*np.sin(t)+center[1],np.cos(t),np.sin(t) ) for t in s ]
+    P = [(radius*np.cos(t)+center[0], np.sin(t)+center[1],np.cos(t),np.sin(t) ) for t in s ]
     return P
 
 def getCircleSamples2(center=(0,0),radius=1,nPoints=30):
@@ -29,11 +29,9 @@ def getCircleSamples2(center=(0,0),radius=1,nPoints=30):
     P = [[[round(radius*np.cos(t)+center[0]), round(radius*np.sin(t)+center[1])]] for t in s ]
     return P
 
-
 def getImageSequence(fn,fastForward =2):
     '''Load the video sequence (fn) and proceeds, fastForward number of frames.'''
     cap = cv2.VideoCapture(fn)
-
     for t in range(fastForward):
         running, imgOrig = cap.read()  # Get the first frames
     return cap,imgOrig,running
@@ -134,7 +132,7 @@ class RegionProps:
             retVal = (-1,-1)    
         return retVal
         
-    def __calcEquivDiameter(self, m,contour):
+    def __calcEquivDiameter(self, m, contour):
         Area = self.__calcArea(m, contour)
         return np.sqrt(4*Area/np.pi)
     def __calcExtend(self,m,c):

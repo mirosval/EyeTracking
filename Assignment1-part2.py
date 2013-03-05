@@ -10,8 +10,6 @@ import numpy as np
 import sys
 
 
-
-
 inputFile = "Sequences/eye1.avi"
 outputFile = "eyeTrackerResult.mp4"
 
@@ -28,6 +26,9 @@ frameNr =0;
 
 def GetPupil(gray,thr, structuringElementSize):
 	'''Given a gray level image, gray and threshold value return a list of pupil locations'''
+
+	return GetPupilKMeans(gray)
+
 	tempResultImg = cv2.cvtColor(gray,cv2.COLOR_GRAY2BGR) #used to draw temporary results
 	# cv2.circle(tempResultImg,(100,200), 2, (0,0,255),4) #draw a circle
 	cv2.imshow("TempResults",tempResultImg)
@@ -36,7 +37,7 @@ def GetPupil(gray,thr, structuringElementSize):
 
 	val, binI = cv2.threshold(gray, thr, 255, cv2.THRESH_BINARY_INV)
 	# binI = cv2.adaptiveThreshold(gray, 255, cv2.cv.CV_ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 5, 10)
-	# cv2.imshow("Threshold",binI)
+	cv2.imshow("Threshold",binI)
 	# kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (structuringElementSize, structuringElementSize))
 	kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
 	binI = cv2.erode(binI, kernel, iterations = 1)
@@ -50,7 +51,7 @@ def GetPupil(gray,thr, structuringElementSize):
 
 	for contour in contours:
 		p = props.CalcContourProperties(contour, ['Area','Length','Centroid','Extend','ConvexHull', 'Boundingbox', 'EquivDiameter'])
-		if p['Area'] < 1000 or p['Area'] > 6000:
+		if p['Area'] < 700 or p['Area'] > 6000:
 			continue
 		# print(p['Extend'])
 		if p['Extend'] < 0.07:
@@ -158,6 +159,12 @@ def GetEyeCorners(leftTemplate, rightTemplate,pupilPosition=None):
 def FilterPupilGlint(pupils,glints):
 	''' Given a list of pupil candidates and glint candidates returns a list of pupil and glints'''
 	pass
+
+def GetPupilKMeans(gray, K = 2, distanceWeight = 2, reSize = (40,40)):
+	smallI = cv2.resize(gray, reSize)
+	M,N = smallI.shape
+
+	X,Y = np.meshgrid(range(M), range(N))
 
 def update(I):
 	'''Calculate the image features and display the result based on the slider values'''
