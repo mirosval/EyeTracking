@@ -12,6 +12,7 @@ import sys
 from scipy.cluster.vq import *
 #from scipy.misc import imresize
 from matplotlib.pyplot import *
+import math
 
 inputFile = "Sequences/eye1.avi"
 outputFile = "eyeTrackerResult.mp4"
@@ -31,12 +32,11 @@ def GetPupil(gray, thr, structuringElementSize):
     '''Given a gray level image, gray and threshold value return a list of pupil locations'''
 
     #this will create the temporal image in color.
-    tempResultImg = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR) #used to draw temporary results
-    # cv2.circle(tempResultImg,(100,200), 2, (0,0,255),4) #draw a circle
+    tempResultImg = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
     cv2.imshow("TempResults", tempResultImg)
 
     props = RegionProps()
-
+    GetPupilKMeans(gray)
     val, binI = cv2.threshold(gray, thr, 255, cv2.THRESH_BINARY_INV)
     # binI = cv2.adaptiveThreshold(gray, 255, cv2.cv.CV_ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 5, 10)
     cv2.imshow("Threshold", binI)
@@ -50,12 +50,15 @@ def GetPupil(gray, thr, structuringElementSize):
     contours, hierarchy = cv2.findContours(binI, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
     pupils = []
     accepted = []
+    sliderVals = getSliderVals()
 
     for contour in contours:
         p = props.CalcContourProperties(contour, ['Area', 'Length', 'Centroid', 'Extend', 'ConvexHull', 'Boundingbox',
                                                   'EquivDiameter'])
-        if p['Area'] < 700 or p['Area'] > 6000:
+        if p['Area'] < sliderVals['minGlint'] or p['Area'] > sliderVals['maxGlint']:
             continue
+        # if p['Area'] < 700 or p['Area'] > 6000:
+        #     continue
             # print(p['Extend'])
         if p['Extend'] < 0.07:
             continue
@@ -170,7 +173,47 @@ def GetEyeCorners(leftTemplate, rightTemplate, pupilPosition=None):
 
 def FilterPupilGlint(pupils, glints):
     ''' Given a list of pupil candidates and glint candidates returns a list of pupil and glints'''
-    pass
+    # '''
+    #     ((376.09381103515625, 268.9991760253906), (73.526696559450443, 73.526696559450443), 0.0)
+    #     (399.90821256038646, 300.33494363929145)
+    #     (350.97811447811443, 298.86531986531986)
+    #     (635.5166666666667, 375.525)
+    #     (635.515587529976, 110.9040767386091)
+    # '''
+    #starts here
+    glintFiltered = []
+    for pupil in pupils:
+        #print "This is pupil", pupil
+        a1, a2 = [ -1, 10 ** 6], [-1, 10 **  6]
+
+        for glint in glints:
+             a1 = [glints[glint], calculateItDis(pupils[pupil][0], glints[glint][0])]
+             a2 = [glints[glint], calculateItDis(pupils[pupil][0], glints[glint][0])]
+            # min1 = calculateItDis(pupils[pupil][0], glints[glint][0])
+            # top = max(a1[1], a2[1])
+            # if min1 < top:
+        if a1[1] != -1:
+            glintFiltered.append(a1[0])
+        if a2[1] != -1:
+            glintFiltered.append(a2[1])
+
+        return pupils, glintFiltered
+            #print "This is glint", glint
+            #calculate max value
+            # min1 = pupil[1]
+            # min2 = glint[1]
+            # print "This is m1", m1
+            # print "This is m2", m2
+            # This is m1 (376.09381103515625, 268.9991760253906)
+            # This is m2 399.90821256
+            # max1 = pupil[0]
+            # max2 = glint[0]
+
+
+def calculateItDis(x1, x2):
+    distancia = math.sqrt(math.pow(x1[0] - x2[0], 2) + math.pow(x1[1] - x2[1], 2))
+    print distancia
+    return distancia
 
 
 def GetPupilKMeans(gray, K=2, distanceWeight=2, reSize=(40, 40)):
@@ -215,6 +258,7 @@ def update(I):
     global leftTemplate
     global rightTemplate
     GetEyeCorners(leftTemplate, rightTemplate)
+
     #Display results
     global frameNr, drawImg
     x, y = 10, 10
@@ -270,11 +314,11 @@ def run(fileName, resultFile='eyeTrackingResults.avi'):
     if (sequenceOK):
         update(imgOrig)
     printUsage()
-    frameNr = 0;
+    frameNr = 0
     saveFrames = False
 
     while (sequenceOK):
-        sliderVals = getSliderVals();
+        sliderVals = getSliderVals()
         frameNr = frameNr + 1
         ch = cv2.waitKey(1)
         #Select regions
@@ -346,6 +390,9 @@ def setupWindowSliders():
     #define the minimum and maximum areas of the pupil
     cv2.createTrackbar('minSize', 'Threshold', 20, 200, onSlidersChange)
     cv2.createTrackbar('maxSize', 'Threshold', 200, 200, onSlidersChange)
+    #define the minimum and maximum areas of the glint
+    cv2.createTrackbar('minGlint', 'Threshold', 500, 6700, onSlidersChange)
+    cv2.createTrackbar('maxGlint', 'Threshold', 6700, 6700, onSlidersChange)
     #Value to indicate whether to run or pause the video
     cv2.createTrackbar('Stop/Start', 'Threshold', 0, 1, onSlidersChange)
 
@@ -361,6 +408,10 @@ def getSliderVals():
 
     sliderVals['pupilThr'] = cv2.getTrackbarPos('pupilThr', 'Threshold')
     sliderVals['glintThr'] = cv2.getTrackbarPos('glintThr', 'Threshold')
+
+    sliderVals['minGlint'] = cv2.getTrackbarPos('minGlint', 'Threshold')
+    sliderVals['maxGlint'] = cv2.getTrackbarPos('maxGlint', 'Threshold')
+
     sliderVals['minSize'] = 50 * cv2.getTrackbarPos('minSize', 'Threshold')
     sliderVals['maxSize'] = 50 * cv2.getTrackbarPos('maxSize', 'Threshold')
     sliderVals['Running'] = 1 == cv2.getTrackbarPos('Stop/Start', 'Threshold')
