@@ -43,7 +43,7 @@ def GetPupil(gray,thr, structuringElementSize):
 	binI = cv2.erode(binI, kernel, iterations = 1)
 	binI = cv2.dilate(binI, kernel, iterations = 1)
 
-	
+
 	#Calculate blobs
 	contours, hierarchy = cv2.findContours(binI, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 	pupils = []
@@ -62,7 +62,7 @@ def GetPupil(gray,thr, structuringElementSize):
 		# c = p['Centroid']
 		center, radius = cv2.minEnclosingCircle(hull)
 		circle = np.array(getCircleSamples2(center, radius)).astype(int)
-		
+
 		retval = cv2.matchShapes(circle, hull, cv2.cv.CV_CONTOURS_MATCH_I1, 0)
 		if retval > 0.05:
 			continue
@@ -86,7 +86,7 @@ def GetGlints(gray,thr):
 	props = RegionProps()
 
 	val, binI = cv2.threshold(gray, thr, 255, cv2.THRESH_BINARY)
-	
+
 	contours, hierarchy = cv2.findContours(binI, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 	accepted = []
 
@@ -322,7 +322,7 @@ def setupWindowSliders():
 def getSliderVals():
 	'''Extract the values of the sliders and return these in a dictionary'''
 	sliderVals={}
-	
+
 	sliderVals['structSize'] = cv2.getTrackbarPos('structSize', 'Threshold')
 
 	sliderVals['pupilThr'] = cv2.getTrackbarPos('pupilThr', 'Threshold')
