@@ -30,8 +30,6 @@ frameNr = 0
 def GetPupil(gray, thr, structuringElementSize):
     '''Given a gray level image, gray and threshold value return a list of pupil locations'''
 
-    GetPupilKMeans(gray)
-
     #this will create the temporal image in color.
     tempResultImg = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR) #used to draw temporary results
     # cv2.circle(tempResultImg,(100,200), 2, (0,0,255),4) #draw a circle
@@ -207,7 +205,8 @@ def update(I):
     img = I.copy()
     sliderVals = getSliderVals()
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-    # Do the magic
+    # Do the cool thigs
+    #GetPupilKMeans(gray)
     pupils = GetPupil(gray, sliderVals['pupilThr'], sliderVals['structSize'])
     glints = GetGlints(gray, sliderVals['glintThr'])
     FilterPupilGlint(pupils, glints)
