@@ -8,7 +8,10 @@ from SIGBTools import getImageSequence
 from SIGBTools import getCircleSamples2
 import numpy as np
 import sys
-
+#this imports are from the part 2
+from scipy.cluster.vq import *
+#from scipy.misc import imresize
+from matplotlib.pyplot import *
 
 inputFile = "Sequences/eye1.avi"
 outputFile = "eyeTrackerResult.mp4"
@@ -27,8 +30,9 @@ frameNr = 0
 def GetPupil(gray, thr, structuringElementSize):
     '''Given a gray level image, gray and threshold value return a list of pupil locations'''
 
-    return GetPupilKMeans(gray)
+    GetPupilKMeans(gray)
 
+    #this will create the temporal image in color.
     tempResultImg = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR) #used to draw temporary results
     # cv2.circle(tempResultImg,(100,200), 2, (0,0,255),4) #draw a circle
     cv2.imshow("TempResults", tempResultImg)
@@ -125,12 +129,12 @@ def circularHough(gray):
     #See help for http://opencv.itseez.com/modules/imgproc/doc/feature_detection.html?highlight=houghcircle#cv2.HoughCircles
     blur = cv2.GaussianBlur(gray, (31, 31), 11)
 
-    dp = 6;
+    dp = 6
     minDist = 30
     highThr = 20 #High threshold for canny
-    accThr = 850; #accumulator threshold for the circle centers at the detection stage. The smaller it is, the more false circles may be detected
-    maxRadius = 50;
-    minRadius = 155;
+    accThr = 850  #accumulator threshold for the circle centers at the detection stage. The smaller it is, the more false circles may be detected
+    maxRadius = 50
+    minRadius = 155
     circles = cv2.HoughCircles(blur, cv2.cv.CV_HOUGH_GRADIENT, dp, minDist, None, highThr, accThr, maxRadius, minRadius)
 
     #Make a color image from gray for display purposes
@@ -176,6 +180,24 @@ def GetPupilKMeans(gray, K=2, distanceWeight=2, reSize=(40, 40)):
     M, N = smallI.shape
 
     X, Y = np.meshgrid(range(M), range(N))
+    z = smallI.flatten()
+    x = X.flatten()
+    y = Y.flatten()
+    o = len(x)
+
+    features = np.zeros((o, 3))
+    features[:, 0] = z
+    features[:, 1] = y / distanceWeight
+    features[:, 2] = x / distanceWeight
+    features = np.array(features, 'f')
+    centroids, variance = kmeans(features, K)
+    label, distance = vq(features, centroids)
+    labelIm = np.array(np.reshape(label, (M, N)))
+    f = figure(1)
+    imshow(labelIm)
+    f.canvas.draw()
+    f.show()
+
 
 
 def update(I):
@@ -240,7 +262,7 @@ def run(fileName, resultFile='eyeTrackingResults.avi'):
     ''' MAIN Method to load the image sequence and handle user inputs'''
     global imgOrig, frameNr, drawImg
     setupWindowSliders()
-    props = RegionProps();
+    props = RegionProps()
 
     cap, imgOrig, sequenceOK = getImageSequence(fileName)
     videoWriter = 0
