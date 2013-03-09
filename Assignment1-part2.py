@@ -7,7 +7,12 @@ from SIGBTools import ROISelector
 from SIGBTools import getImageSequence
 from SIGBTools import getCircleSamples2
 import numpy as np
+from scipy.cluster.vq import *
+from scipy.misc import imresize
+from matplotlib.pyplot import *
 import sys
+
+from skimage.feature import hog
 
 
 inputFile = "Sequences/eye1.avi"
@@ -27,7 +32,13 @@ frameNr =0;
 def GetPupil(gray,thr, structuringElementSize):
 	'''Given a gray level image, gray and threshold value return a list of pupil locations'''
 
-	return GetPupilKMeans(gray)
+	# GetPupilKMeans(gray, 2, 8)
+	# GetPupilKMeans(gray, 2, 16)
+	# GetPupilKMeans(gray, 2, 32)
+	# GetPupilKMeans(gray, 4, 10, (100, 100))
+	# GetPupilKMeans(gray, 2, 50)
+
+	getGradientInfo(gray)
 
 	tempResultImg = cv2.cvtColor(gray,cv2.COLOR_GRAY2BGR) #used to draw temporary results
 	# cv2.circle(tempResultImg,(100,200), 2, (0,0,255),4) #draw a circle
@@ -43,7 +54,7 @@ def GetPupil(gray,thr, structuringElementSize):
 	binI = cv2.erode(binI, kernel, iterations = 1)
 	binI = cv2.dilate(binI, kernel, iterations = 1)
 
-
+	
 	#Calculate blobs
 	contours, hierarchy = cv2.findContours(binI, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 	pupils = []
@@ -62,7 +73,7 @@ def GetPupil(gray,thr, structuringElementSize):
 		# c = p['Centroid']
 		center, radius = cv2.minEnclosingCircle(hull)
 		circle = np.array(getCircleSamples2(center, radius)).astype(int)
-
+		
 		retval = cv2.matchShapes(circle, hull, cv2.cv.CV_CONTOURS_MATCH_I1, 0)
 		if retval > 0.05:
 			continue
@@ -86,7 +97,7 @@ def GetGlints(gray,thr):
 	props = RegionProps()
 
 	val, binI = cv2.threshold(gray, thr, 255, cv2.THRESH_BINARY)
-
+	
 	contours, hierarchy = cv2.findContours(binI, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 	accepted = []
 
@@ -161,10 +172,53 @@ def FilterPupilGlint(pupils,glints):
 	pass
 
 def GetPupilKMeans(gray, K = 2, distanceWeight = 2, reSize = (40,40)):
+	
 	smallI = cv2.resize(gray, reSize)
+	
 	M,N = smallI.shape
 
 	X,Y = np.meshgrid(range(M), range(N))
+
+	z = smallI.flatten()
+	x = X.flatten()
+	y = Y.flatten()
+	O = len(x)
+
+	features = np.zeros((O, 3))
+	features[:,0] = z
+	features[:,1] = y / distanceWeight
+	features[:,2] = x / distanceWeight
+
+	features = np.array(features, 'f')
+
+	centroids, variance = kmeans(features, K)
+
+	label, distance = vq(features, centroids)
+
+	labelIm = np.array(np.reshape(label, (M, N)))
+
+	f = figure(1)
+	imshow(labelIm)
+	f.canvas.draw()
+	f.show()
+
+def getGradientInfo(img):
+	sobelHorizontal = cv2.Sobel(src = img, ddepth = cv2.cv.CV_32F, dx = 1, dy = 0, ksize = 3)
+	sobelVertical = cv2.Sobel(src = img, ddepth = cv2.cv.CV_32F, dx = 0, dy = 1, ksize = 3)
+
+	magnitude, angle = cv2.cartToPolar(sobelHorizontal, sobelVertical)
+
+	# Quiver Plot
+	res = 10
+	N, M = img.shape
+	X, Y = np.meshgrid(np.arange(0, M, res), np.arange(0, N, res))
+
+	f = figure(1)
+	imshow(img, cmap=cm.gray)
+	quiver(X, Y, sobelHorizontal[::res,::res], sobelVertical[::res,::res], magnitude[::res,::res], units = "x")
+	f.show()
+
+	return 
 
 def update(I):
 	'''Calculate the image features and display the result based on the slider values'''
@@ -322,7 +376,7 @@ def setupWindowSliders():
 def getSliderVals():
 	'''Extract the values of the sliders and return these in a dictionary'''
 	sliderVals={}
-
+	
 	sliderVals['structSize'] = cv2.getTrackbarPos('structSize', 'Threshold')
 
 	sliderVals['pupilThr'] = cv2.getTrackbarPos('pupilThr', 'Threshold')
