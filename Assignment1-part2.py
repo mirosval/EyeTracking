@@ -15,7 +15,7 @@ import sys
 from skimage.feature import hog
 
 
-inputFile = "Sequences/eye1.avi"
+inputFile = "Sequences/eye4.avi"
 outputFile = "eyeTrackerResult.mp4"
 
 #--------------------------
@@ -40,9 +40,12 @@ def GetPupil(gray,thr, structuringElementSize):
 
 	getGradientInfo(gray)
 
+	return []
+
+	# circularHough(gray)
+
 	tempResultImg = cv2.cvtColor(gray,cv2.COLOR_GRAY2BGR) #used to draw temporary results
 	# cv2.circle(tempResultImg,(100,200), 2, (0,0,255),4) #draw a circle
-	cv2.imshow("TempResults",tempResultImg)
 
 	props = RegionProps()
 
@@ -128,29 +131,30 @@ def GetIrisUsingThreshold(gray,pupil):
 def circularHough(gray):
 	''' Performs a circular hough transform of the image, gray and shows the  detected circles
 	The circe with most votes is shown in red and the rest in green colors '''
- #See help for http://opencv.itseez.com/modules/imgproc/doc/feature_detection.html?highlight=houghcircle#cv2.HoughCircles
+ 	#See help for http://opencv.itseez.com/modules/imgproc/doc/feature_detection.html?highlight=houghcircle#cv2.HoughCircles
 	blur = cv2.GaussianBlur(gray, (31,31), 11)
 
 	dp = 6; minDist = 30
-	highThr = 20 #High threshold for canny
-	accThr = 850; #accumulator threshold for the circle centers at the detection stage. The smaller it is, the more false circles may be detected
-	maxRadius = 50;
-	minRadius = 155;
-	circles = cv2.HoughCircles(blur,cv2.cv.CV_HOUGH_GRADIENT, dp,minDist, None, highThr,accThr,maxRadius, minRadius)
-
+	highThr = 17 #High threshold for canny
+	accThr = 350; #accumulator threshold for the circle centers at the detection stage. The smaller it is, the more false circles may be detected
+	maxRadius = 1000;
+	minRadius = 100;
+	circles = cv2.HoughCircles(blur,cv2.cv.CV_HOUGH_GRADIENT, dp,minDist, None, highThr,accThr,minRadius, maxRadius)
+	print(circles)
 	#Make a color image from gray for display purposes
 	gColor = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
 	if (circles !=None):
-	 #print circles
-	 all_circles = circles[0]
-	 M,N = all_circles.shape
-	 k=1
-	 for c in all_circles:
+		#print circles
+		all_circles = circles[0]
+		M,N = all_circles.shape
+		k=1
+		for c in all_circles:
 			cv2.circle(gColor, (int(c[0]),int(c[1])),c[2], (int(k*255/M),k*128,0))
 			K=k+1
-	 c=all_circles[0,:]
-	 cv2.circle(gColor, (int(c[0]),int(c[1])),c[2], (0,0,255),5)
-	 cv2.imshow("hough",gColor)
+		c=all_circles[0,:]
+		cv2.circle(gColor, (int(c[0]),int(c[1])),c[2], (0,0,255),5)
+		# cv2.imshow("Threshold",gColor)
+		cv2.imshow("TempResults",gColor)
 
 def GetIrisUsingNormals(gray,pupil,normalLength):
 	''' Given a gray level image, gray and the length of the normals, normalLength
@@ -192,7 +196,7 @@ def GetPupilKMeans(gray, K = 2, distanceWeight = 2, reSize = (40,40)):
 	features = np.array(features, 'f')
 
 	centroids, variance = kmeans(features, K)
-
+	print(centroids)
 	label, distance = vq(features, centroids)
 
 	labelIm = np.array(np.reshape(label, (M, N)))
@@ -203,10 +207,18 @@ def GetPupilKMeans(gray, K = 2, distanceWeight = 2, reSize = (40,40)):
 	f.show()
 
 def getGradientInfo(img):
-	sobelHorizontal = cv2.Sobel(src = img, ddepth = cv2.cv.CV_32F, dx = 1, dy = 0, ksize = 3)
-	sobelVertical = cv2.Sobel(src = img, ddepth = cv2.cv.CV_32F, dx = 0, dy = 1, ksize = 3)
+	sobelHorizontal = cv2.Sobel(img, ddepth = cv2.cv.CV_32F, dx = 1, dy = 0, ksize = 3)
+	sobelVertical = cv2.Sobel(img, ddepth = cv2.cv.CV_32F, dx = 0, dy = 1, ksize = 3)
 
 	magnitude, angle = cv2.cartToPolar(sobelHorizontal, sobelVertical)
+
+	# sobelHorizontal = cv2.convertScaleAbs(sobelHorizontal)
+	# sobelVertical = cv2.convertScaleAbs(sobelVertical)
+
+	# sobelHorizontal2 = cv2.convertScale(sobelHorizontal)
+	# sobelVertical2 = cv2.convertScale(sobelVertical)
+
+	# cv2.imshow("Threshold", cv2.addWeighted(sobelHorizontal, 0.5, sobelVertical, 0.5, 0))
 
 	# Quiver Plot
 	res = 10
@@ -215,7 +227,11 @@ def getGradientInfo(img):
 
 	f = figure(1)
 	imshow(img, cmap=cm.gray)
-	quiver(X, Y, sobelHorizontal[::res,::res], sobelVertical[::res,::res], magnitude[::res,::res], units = "x")
+	# quiver(X, Y, sobelHorizontal[::res,::res], sobelVertical[::res,::res], units = "xy")
+	abc = cv2.addWeighted(sobelHorizontal, 0.5, sobelVertical, 0.5, 0)
+
+	print(abc.shape)
+	quiver(X, Y, cv2.transpose(sobelHorizontal)[::res,::res], cv2.transpose(sobelVertical)[::res,::res])
 	f.show()
 
 	return 
